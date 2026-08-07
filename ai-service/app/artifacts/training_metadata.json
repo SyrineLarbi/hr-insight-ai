@@ -1,0 +1,63 @@
+{
+  "model_version": "v1",
+  "algorithm": "XGBClassifier",
+  "timestamp": "2026-04-20T13:04:31.795845+00:00",
+  "duration_seconds": 0.662,
+  "dataset": {
+    "total_rows": 5000,
+    "train_rows": 4000,
+    "test_rows": 1000,
+    "n_features": 12,
+    "feature_names": [
+      "salary",
+      "tenureMonths",
+      "engagementScore",
+      "performanceScore",
+      "absenteeismDays",
+      "overtimeHours",
+      "lastPromotionMonths",
+      "trainingHours",
+      "salary_per_tenure",
+      "engagement_performance",
+      "overtime_absenteeism",
+      "promotion_overdue"
+    ],
+    "attrition_rate_pct": 23.44
+  },
+  "hyperparameters": {
+    "n_estimators": 200,
+    "max_depth": 5,
+    "learning_rate": 0.1,
+    "subsample": 0.8,
+    "colsample_bytree": 0.8,
+    "min_child_weight": 3,
+    "gamma": 0.1,
+    "reg_alpha": 0.1,
+    "reg_lambda": 1.0,
+    "eval_metric": "logloss",
+    "scale_pos_weight": 3.26
+  },
+  "metrics": {
+    "accuracy": 0.723,
+    "precision": 0.4313,
+    "recall": 0.5769,
+    "f1_score": 0.4936,
+    "auc_roc": 0.7285,
+    "cv_auc_roc_mean": 0.7041,
+    "cv_auc_roc_std": 0.0053
+  },
+  "feature_importance": {
+    "engagementScore": 0.1598,
+    "overtimeHours": 0.1099,
+    "promotion_overdue": 0.0793,
+    "salary": 0.0784,
+    "overtime_absenteeism": 0.0769,
+    "salary_per_tenure": 0.076,
+    "performanceScore": 0.0752,
+    "engagement_performance": 0.0727,
+    "lastPromotionMonths": 0.0709,
+    "trainingHours": 0.0696,
+    "absenteeismDays": 0.0691,
+    "tenureMonths": 0.0621
+  }
+}

@@ -1,0 +1,95 @@
+{
+  "timestamp": "2026-04-20T13:04:31.123669+00:00",
+  "row_count": 5000,
+  "column_count": 13,
+  "checks": {
+    "schema": {
+      "passed": true,
+      "expected_columns": 13,
+      "actual_columns": 13,
+      "missing_columns": [],
+      "extra_columns": []
+    },
+    "missing_values": {
+      "passed": true,
+      "total_nulls": 0,
+      "null_per_column": {},
+      "infinite_values": {}
+    },
+    "scaling": {
+      "passed": true,
+      "stats": {
+        "salary": {
+          "mean": -0.0,
+          "std": 1.0001
+        },
+        "tenureMonths": {
+          "mean": 0.0,
+          "std": 1.0001
+        },
+        "engagementScore": {
+          "mean": 0.0,
+          "std": 1.0001
+        },
+        "performanceScore": {
+          "mean": -0.0,
+          "std": 1.0001
+        },
+        "absenteeismDays": {
+          "mean": 0.0,
+          "std": 1.0001
+        },
+        "overtimeHours": {
+          "mean": 0.0,
+          "std": 1.0001
+        },
+        "lastPromotionMonths": {
+          "mean": 0.0,
+          "std": 1.0001
+        },
+        "trainingHours": {
+          "mean": -0.0,
+          "std": 1.0001
+        },
+        "salary_per_tenure": {
+          "mean": -0.0,
+          "std": 1.0001
+        },
+        "engagement_performance": {
+          "mean": 0.0,
+          "std": 1.0001
+        },
+        "overtime_absenteeism": {
+          "mean": -0.0,
+          "std": 1.0001
+        },
+        "promotion_overdue": {
+          "mean": -0.0,
+          "std": 1.0001
+        }
+      },
+      "issues": []
+    },
+    "target_balance": {
+      "passed": true,
+      "attrition_rate": 23.44,
+      "class_0_count": 3828,
+      "class_1_count": 1172
+    },
+    "row_drop_rate": {
+      "passed": true,
+      "raw_rows": 5000,
+      "cleaned_rows": 5000,
+      "final_rows": 5000,
+      "rows_dropped": 0,
+      "drop_rate_pct": 0.0
+    },
+    "extreme_outliers": {
+      "passed": true,
+      "columns_with_outliers": {}
+    }
+  },
+  "warnings": [],
+  "passed": true,
+  "summary": "6/6 checks passed"
+}

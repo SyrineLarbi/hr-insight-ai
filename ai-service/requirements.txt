@@ -1,0 +1,35 @@
+# HR Insight AI — AI service dependencies
+#
+# The ML stack is pinned with `==`, not `>=`. model.joblib / scaler.joblib are
+# pickles: they carry the class layout of the scikit-learn and XGBoost versions
+# that wrote them. A floating `>=` lets a fresh install pull a newer version that
+# either refuses to unpickle or — worse — loads and predicts differently.
+# Bump these deliberately, then retrain: POST /model/retrain.
+
+# --- API layer (floating is fine — no serialized state) ---------------------
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+pydantic>=2.10.0
+python-dotenv>=1.0.0
+httpx>=0.28.0
+
+# --- ML stack (pinned — see note above) -------------------------------------
+scikit-learn==1.8.0
+xgboost==3.2.0
+numpy==2.4.2
+pandas==3.0.0
+scipy==1.17.0
+joblib==1.5.3
+
+# --- Database (optional, only for direct-from-Postgres ETL) -----------------
+psycopg2-binary>=2.9.10
+sqlalchemy>=2.0.36
+
+# --- Notebooks + plotting ---------------------------------------------------
+matplotlib>=3.9.0
+seaborn>=0.13.0
+jupyter>=1.1.0
+
+# --- Testing ----------------------------------------------------------------
+pytest>=8.3.0
+pytest-cov>=6.0.0
