@@ -1,0 +1,22 @@
+{
+  "name": "hr-insight-ai",
+  "version": "0.1.0",
+  "private": true,
+  "description": "HR Insight AI \u2014 NestJS backend + Next.js frontend + FastAPI AI service",
+  "scripts": {
+    "dev": "concurrently -n ai,backend,frontend -c magenta,cyan,yellow \"npm:dev:ai\" \"npm:dev:backend\" \"npm:dev:frontend\"",
+    "dev:ai": "cd ai-service && . venv/bin/activate && uvicorn app.main:app --reload --port 8000",
+    "dev:backend": "cd backend && npm run start:dev",
+    "dev:frontend": "cd frontend && npm run dev -- -p 3002",
+    "install:all": "cd backend && npm install && cd ../frontend && npm install && cd ../ai-service && . venv/bin/activate && pip install -r requirements.txt",
+    "seed": "cd backend && npx prisma migrate deploy && npx prisma db seed",
+    "smoke": "bash scripts/smoke-test.sh",
+    "test": "concurrently -n backend,frontend,ai -c cyan,yellow,magenta \"npm:test:backend\" \"npm:test:frontend\" \"npm:test:ai\"",
+    "test:backend": "cd backend && npm test",
+    "test:frontend": "cd frontend && npm test",
+    "test:ai": "cd ai-service && venv/bin/python -m pytest"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
