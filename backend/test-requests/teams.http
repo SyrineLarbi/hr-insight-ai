@@ -1,0 +1,203 @@
+# HR Insight AI — Teams Endpoints
+# Requires: REST Client VS Code extension
+# Backend runs on port 3010 (npm run start:dev)
+#
+# SETUP:
+# 1. Open auth.http → run LOGIN tests → paste tokens below (no quotes)
+# 2. After creating a team, paste its UUID into @teamId
+# 3. Run tests top to bottom
+
+@baseUrl = http://localhost:3010
+@contentType = application/json
+
+# ─────────────────────────────────────────────
+# ⚠️  NO quotes — raw token strings only
+# ─────────────────────────────────────────────
+@adminToken       = PASTE_ADMIN_TOKEN_HERE
+@hrManagerToken   = PASTE_HR_MANAGER_TOKEN_HERE
+@teamManagerToken = PASTE_TEAM_MANAGER_TOKEN_HERE
+@viewerToken      = PASTE_VIEWER_TOKEN_HERE
+
+# Paste a team UUID from GET /teams response
+@teamId = PASTE_TEAM_UUID_HERE
+
+# Paste the UUID of a team NOT assigned to TEAM_MANAGER (for 403 test)
+@otherTeamId = PASTE_OTHER_TEAM_UUID_HERE
+
+
+# ═══════════════════════════════════════════════════════════════
+# SECTION 1: UNAUTHENTICATED
+# ═══════════════════════════════════════════════════════════════
+
+### ❌ TEST 1 — No token → 401 Unauthorized
+GET {{baseUrl}}/teams
+
+
+# ═══════════════════════════════════════════════════════════════
+# SECTION 2: LIST TEAMS — same route, different results per role
+# ═══════════════════════════════════════════════════════════════
+
+### ✅ TEST 2 — ADMIN: sees ALL teams (+ _count.employees on each)
+# Copy any team id from response → paste into @teamId above
+GET {{baseUrl}}/teams
+Authorization: Bearer {{adminToken}}
+
+
+### ✅ TEST 3 — HR_MANAGER: sees ALL teams
+GET {{baseUrl}}/teams
+Authorization: Bearer {{hrManagerToken}}
+
+
+### ✅ TEST 4 — TEAM_MANAGER: sees ONLY assigned teams (should be 1 team: Platform Engineering)
+# If result is all 3 teams, RBAC scoping is broken
+# If result is empty, the seed TeamAssignment didn't run
+GET {{baseUrl}}/teams
+Authorization: Bearer {{teamManagerToken}}
+
+
+### ✅ TEST 5 — VIEWER: sees ALL teams (read-only, no scope restriction)
+GET {{baseUrl}}/teams
+Authorization: Bearer {{viewerToken}}
+
+
+# ═══════════════════════════════════════════════════════════════
+# SECTION 3: GET ONE TEAM
+# ═══════════════════════════════════════════════════════════════
+
+### ✅ TEST 6 — ADMIN: get team by ID (includes employees array)
+GET {{baseUrl}}/teams/{{teamId}}
+Authorization: Bearer {{adminToken}}
+
+
+### ✅ TEST 7 — TEAM_MANAGER: get their assigned team → 200
+GET {{baseUrl}}/teams/{{teamId}}
+Authorization: Bearer {{teamManagerToken}}
+
+
+### ❌ TEST 8 — TEAM_MANAGER: get a team they're NOT assigned to → 403 Forbidden
+GET {{baseUrl}}/teams/{{otherTeamId}}
+Authorization: Bearer {{teamManagerToken}}
+
+
+# ═══════════════════════════════════════════════════════════════
+# SECTION 4: CREATE TEAM
+# ═══════════════════════════════════════════════════════════════
+
+### ✅ TEST 9 — HR_MANAGER: create a new team → 201 Created
+# Copy the returned id → can use in later tests
+POST {{baseUrl}}/teams
+Content-Type: {{contentType}}
+Authorization: Bearer {{hrManagerToken}}
+
+{
+  "name": "Data Science",
+  "department": "Analytics"
+}
+
+
+### ✅ TEST 10 — ADMIN: create another team
+POST {{baseUrl}}/teams
+Content-Type: {{contentType}}
+Authorization: Bearer {{adminToken}}
+
+{
+  "name": "DevOps",
+  "department": "Infrastructure"
+}
+
+
+### ❌ TEST 11 — TEAM_MANAGER: create team → 403 Forbidden
+POST {{baseUrl}}/teams
+Content-Type: {{contentType}}
+Authorization: Bearer {{teamManagerToken}}
+
+{
+  "name": "My New Team",
+  "department": "Engineering"
+}
+
+
+### ❌ TEST 12 — VIEWER: create team → 403 Forbidden
+POST {{baseUrl}}/teams
+Content-Type: {{contentType}}
+Authorization: Bearer {{viewerToken}}
+
+{
+  "name": "Viewer Team",
+  "department": "Nothing"
+}
+
+
+### ❌ TEST 13 — Validation: missing required field → 400 Bad Request
+POST {{baseUrl}}/teams
+Content-Type: {{contentType}}
+Authorization: Bearer {{adminToken}}
+
+{
+  "name": "Incomplete Team"
+}
+
+
+# ═══════════════════════════════════════════════════════════════
+# SECTION 5: UPDATE TEAM
+# ═══════════════════════════════════════════════════════════════
+
+### ✅ TEST 14 — ADMIN: update team name
+PATCH {{baseUrl}}/teams/{{teamId}}
+Content-Type: {{contentType}}
+Authorization: Bearer {{adminToken}}
+
+{
+  "name": "Platform Engineering v2"
+}
+
+
+### ✅ TEST 15 — HR_MANAGER: update team department
+PATCH {{baseUrl}}/teams/{{teamId}}
+Content-Type: {{contentType}}
+Authorization: Bearer {{hrManagerToken}}
+
+{
+  "department": "Product Engineering"
+}
+
+
+### ❌ TEST 16 — TEAM_MANAGER: update a team they're NOT assigned to → 403 Forbidden
+PATCH {{baseUrl}}/teams/{{otherTeamId}}
+Content-Type: {{contentType}}
+Authorization: Bearer {{teamManagerToken}}
+
+{
+  "name": "Hijacked Team"
+}
+
+
+### ❌ TEST 17 — VIEWER: update team → 403 Forbidden
+PATCH {{baseUrl}}/teams/{{teamId}}
+Content-Type: {{contentType}}
+Authorization: Bearer {{viewerToken}}
+
+{
+  "name": "Viewer Edit Attempt"
+}
+
+
+# ═══════════════════════════════════════════════════════════════
+# SECTION 6: DELETE TEAM
+# ═══════════════════════════════════════════════════════════════
+
+### ❌ TEST 18 — HR_MANAGER: delete team → 403 Forbidden (ADMIN only)
+DELETE {{baseUrl}}/teams/{{teamId}}
+Authorization: Bearer {{hrManagerToken}}
+
+
+### ❌ TEST 19 — TEAM_MANAGER: delete team → 403 Forbidden
+DELETE {{baseUrl}}/teams/{{teamId}}
+Authorization: Bearer {{teamManagerToken}}
+
+
+### ✅ TEST 20 — ADMIN: delete team → 200 + success message
+# WARNING: Use the id of a team you created in TEST 9 or 10, not the seeded ones
+# DELETE {{baseUrl}}/teams/PASTE-NEWLY-CREATED-TEAM-ID-HERE
+# Authorization: Bearer {{adminToken}}
+# (Uncomment the 2 lines above when ready — don't delete seeded teams)

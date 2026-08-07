@@ -1,0 +1,123 @@
+# HR Insight AI — Audit Logs Endpoint
+# Requires: REST Client VS Code extension
+# Backend runs on port 3010 (npm run start:dev)
+#
+# Workflow:
+# 1. Open auth.http → run TEST 4 (admin login) → copy token → paste into @adminToken
+# 2. Open auth.http → run TEST 2 (viewer login) → copy token → paste into @viewerToken
+# 3. Run tests below in order — some tests depend on data created by previous ones
+
+@baseUrl = http://localhost:3010
+@contentType = application/json
+
+# ─────────────────────────────────────────────
+# ⚠️  NO quotes — paste raw token strings only
+# ─────────────────────────────────────────────
+@adminToken = PASTE_ADMIN_TOKEN_HERE
+@viewerToken = PASTE_VIEWER_TOKEN_HERE
+@hrToken = PASTE_HR_MANAGER_TOKEN_HERE
+
+# ─────────────────────────────────────────────
+# Paste a user UUID after running TEST 4 in users.http
+# ─────────────────────────────────────────────
+@someUserId = PASTE_ANY_USER_UUID_HERE
+
+
+### ❌ TEST 1 — Get audit logs WITHOUT token (should return 401 Unauthorized)
+GET {{baseUrl}}/audit-logs
+
+
+### ❌ TEST 2 — Get audit logs with VIEWER token (should return 403 Forbidden)
+GET {{baseUrl}}/audit-logs
+Authorization: Bearer {{viewerToken}}
+
+
+### ✅ TEST 3 — Get ALL audit logs with ADMIN token (should return 200 + paginated data)
+# This returns all audit entries — check that meta.total > 0
+GET {{baseUrl}}/audit-logs
+Authorization: Bearer {{adminToken}}
+
+
+### ✅ TEST 4 — Get audit logs with HR_MANAGER token (should also return 200)
+GET {{baseUrl}}/audit-logs
+Authorization: Bearer {{hrToken}}
+
+
+### ✅ TEST 5 — Filter by action: CREATE only
+GET {{baseUrl}}/audit-logs?action=CREATE
+Authorization: Bearer {{adminToken}}
+
+
+### ✅ TEST 6 — Filter by action: DELETE only
+GET {{baseUrl}}/audit-logs?action=DELETE
+Authorization: Bearer {{adminToken}}
+
+
+### ✅ TEST 7 — Filter by action: UPDATE only
+GET {{baseUrl}}/audit-logs?action=UPDATE
+Authorization: Bearer {{adminToken}}
+
+
+### ✅ TEST 8 — Filter by specific userId
+# Paste an admin user UUID to see only their actions
+GET {{baseUrl}}/audit-logs?userId={{someUserId}}
+Authorization: Bearer {{adminToken}}
+
+
+### ✅ TEST 9 — Filter by entityType: USER
+GET {{baseUrl}}/audit-logs?entityType=USER
+Authorization: Bearer {{adminToken}}
+
+
+### ✅ TEST 10 — Filter by entityType: TEAM
+GET {{baseUrl}}/audit-logs?entityType=TEAM
+Authorization: Bearer {{adminToken}}
+
+
+### ✅ TEST 11 — Filter by date range (today only)
+# Replace the date with today's date in ISO format
+GET {{baseUrl}}/audit-logs?from=2026-02-27T00:00:00Z&to=2026-02-27T23:59:59Z
+Authorization: Bearer {{adminToken}}
+
+
+### ✅ TEST 12 — Pagination: page 1, 5 items per page
+# Check meta.totalPages — if total > 5, should be > 1
+GET {{baseUrl}}/audit-logs?page=1&limit=5
+Authorization: Bearer {{adminToken}}
+
+
+### ✅ TEST 13 — Pagination: page 2, 5 items per page
+GET {{baseUrl}}/audit-logs?page=2&limit=5
+Authorization: Bearer {{adminToken}}
+
+
+### ✅ TEST 14 — Combined filters: CREATE actions for USER entity
+GET {{baseUrl}}/audit-logs?action=CREATE&entityType=USER
+Authorization: Bearer {{adminToken}}
+
+
+### ─────────────────────────────────────────────────────────────
+### GENERATE AUDIT DATA — Run these to create entries, then re-run TEST 3 above
+### ─────────────────────────────────────────────────────────────
+
+### ✅ GENERATE 1 — Register a new user (creates a CREATE/USER audit entry)
+POST {{baseUrl}}/auth/register
+Content-Type: {{contentType}}
+
+{
+  "email": "audit.test@example.com",
+  "password": "AuditTest123!",
+  "firstName": "Audit",
+  "lastName": "Test"
+}
+
+
+### ✅ GENERATE 2 — Change a user's role (creates an UPDATE/USER audit entry)
+# Replace :id with a real user UUID from TEST 3 in users.http
+PATCH {{baseUrl}}/users/{{someUserId}}/role
+Content-Type: {{contentType}}
+Authorization: Bearer {{adminToken}}
+
+{
+  "role": "HR_MANAGER"
+}

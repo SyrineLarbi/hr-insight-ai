@@ -1,0 +1,102 @@
+# HR Insight AI — Auth Endpoints
+# Requires: REST Client VS Code extension
+# How to use: click "Send Request" above any request block
+#
+# Backend runs on port 3010 (npm run start:dev)
+
+@baseUrl = http://localhost:3010
+@contentType = application/json
+
+# ─────────────────────────────────────────────
+# After login, copy the access_token value here
+# ⚠️  NO quotes — paste the raw token string only
+# ─────────────────────────────────────────────
+@token = PASTE_YOUR_ACCESS_TOKEN_HERE
+
+### ✅ TEST 1 — Register a new user (should return 201 + token)
+POST {{baseUrl}}/auth/register
+Content-Type: {{contentType}}
+
+{
+  "email": "test@example.com",
+  "password": "TestPass123!",
+  "firstName": "Test",
+  "lastName": "User"
+}
+
+
+### ❌ TEST 2 — Register duplicate email (should return 409 Conflict)
+POST {{baseUrl}}/auth/register
+Content-Type: {{contentType}}
+
+{
+  "email": "test@example.com",
+  "password": "TestPass123!",
+  "firstName": "Test",
+  "lastName": "User"
+}
+
+
+### ❌ TEST 3 — Register with invalid data (should return 400 Bad Request)
+POST {{baseUrl}}/auth/register
+Content-Type: {{contentType}}
+
+{
+  "email": "not-an-email",
+  "password": "short",
+  "firstName": "",
+  "lastName": "User"
+}
+
+
+### ✅ TEST 4 — Login as ADMIN (seeded user)
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "admin@hrinsight.com",
+  "password": "Password123!"
+}
+
+
+### ✅ TEST 5 — Login as HR Manager (seeded user)
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "hr.manager@hrinsight.com",
+  "password": "Password123!"
+}
+
+
+### ✅ TEST 6 — Login as Team Manager (seeded user)
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "team.manager@hrinsight.com",
+  "password": "Password123!"
+}
+
+
+### ❌ TEST 7 — Login with wrong password (should return 401)
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "admin@hrinsight.com",
+  "password": "WrongPassword"
+}
+
+
+### ❌ TEST 8 — Profile without token (should return 401 Unauthorized)
+GET {{baseUrl}}/auth/profile
+
+
+### ✅ TEST 9 — Profile WITH token (paste token from TEST 4 above)
+# 1. Run TEST 4 first
+# 2. Copy the access_token value from the response
+# 3. Paste it in @token at the top of this file
+# 4. Send this request
+GET {{baseUrl}}/auth/profile
+Authorization: Bearer {{token}}

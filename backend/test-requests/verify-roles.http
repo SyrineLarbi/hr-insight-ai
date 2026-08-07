@@ -1,0 +1,240 @@
+# HR Insight AI — Phase 2 Final Verification: All 4 Roles
+# Requires: REST Client VS Code extension
+# Backend runs on port 3010 (npm run start:dev)
+#
+# HOW TO USE:
+# 1. Run the 4 LOGIN tests below
+# 2. Copy each access_token (NO quotes) into the @...Token variables
+# 3. Run all remaining tests from top to bottom
+# 4. Check expected results match the comments
+
+@baseUrl = http://localhost:3010
+@contentType = application/json
+
+# ─────────────────────────────────────────────────────────────
+# STEP 1: Paste tokens here after running the login tests below
+#         ⚠️  NO quotes — raw token strings only
+# ─────────────────────────────────────────────────────────────
+@adminToken        = PASTE_ADMIN_TOKEN_HERE
+@hrManagerToken    = PASTE_HR_MANAGER_TOKEN_HERE
+@teamManagerToken  = PASTE_TEAM_MANAGER_TOKEN_HERE
+@viewerToken       = PASTE_VIEWER_TOKEN_HERE
+
+# Paste a user UUID from the GET /users response (for mutation tests)
+@targetUserId = PASTE_ANY_USER_UUID_HERE
+
+
+# ═══════════════════════════════════════════════════════════════
+# SECTION 1: LOGINS — get a token for each role
+# ═══════════════════════════════════════════════════════════════
+
+### LOGIN 1 — ADMIN (copy access_token → @adminToken)
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "admin@hrinsight.com",
+  "password": "Password123!"
+}
+
+
+### LOGIN 2 — HR_MANAGER (copy access_token → @hrManagerToken)
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "hr.manager@hrinsight.com",
+  "password": "Password123!"
+}
+
+
+### LOGIN 3 — TEAM_MANAGER (copy access_token → @teamManagerToken)
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "team.manager@hrinsight.com",
+  "password": "Password123!"
+}
+
+
+### LOGIN 4 — VIEWER (copy access_token → @viewerToken)
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "viewer@hrinsight.com",
+  "password": "Password123!"
+}
+
+
+# ═══════════════════════════════════════════════════════════════
+# SECTION 2: UNAUTHENTICATED — confirms global JWT guard fires
+# ═══════════════════════════════════════════════════════════════
+
+### UNAUTH 1 — Protected route without token → 401 Unauthorized
+GET {{baseUrl}}/auth/profile
+
+
+### UNAUTH 2 — Protected route without token → 401 Unauthorized
+GET {{baseUrl}}/users
+
+
+### UNAUTH 3 — Public route without token → should work (200 or 201)
+# Confirms @Public() on /auth/login is bypassing the global guard
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "admin@hrinsight.com",
+  "password": "Password123!"
+}
+
+
+# ═══════════════════════════════════════════════════════════════
+# SECTION 3: ADMIN — should have full access
+# ═══════════════════════════════════════════════════════════════
+
+### ADMIN 1 — List all users → 200 + array
+# Copy any user id from the response → paste into @targetUserId above
+GET {{baseUrl}}/users
+Authorization: Bearer {{adminToken}}
+
+
+### ADMIN 2 — Get own profile → 200 (assignedTeams should be empty for ADMIN)
+GET {{baseUrl}}/auth/profile
+Authorization: Bearer {{adminToken}}
+
+
+### ADMIN 3 — Get audit logs → 200 + paginated data
+GET {{baseUrl}}/audit-logs
+Authorization: Bearer {{adminToken}}
+
+
+### ADMIN 4 — Get audit logs page 1, 5 per page → check meta.totalPages
+GET {{baseUrl}}/audit-logs?page=1&limit=5
+Authorization: Bearer {{adminToken}}
+
+
+### ADMIN 5 — Filter audit logs by CREATE action
+GET {{baseUrl}}/audit-logs?action=CREATE
+Authorization: Bearer {{adminToken}}
+
+
+# ═══════════════════════════════════════════════════════════════
+# SECTION 4: HR_MANAGER — can see audit logs, cannot manage users
+# ═══════════════════════════════════════════════════════════════
+
+### HR 1 — List users → 403 Forbidden (ADMIN only endpoint)
+GET {{baseUrl}}/users
+Authorization: Bearer {{hrManagerToken}}
+
+
+### HR 2 — Get audit logs → 200 (HR_MANAGER CAN see audit logs)
+GET {{baseUrl}}/audit-logs
+Authorization: Bearer {{hrManagerToken}}
+
+
+### HR 3 — Get own profile → 200
+GET {{baseUrl}}/auth/profile
+Authorization: Bearer {{hrManagerToken}}
+
+
+# ═══════════════════════════════════════════════════════════════
+# SECTION 5: TEAM_MANAGER — limited access, profile shows assigned teams
+# ═══════════════════════════════════════════════════════════════
+
+### TM 1 — List users → 403 Forbidden
+GET {{baseUrl}}/users
+Authorization: Bearer {{teamManagerToken}}
+
+
+### TM 2 — Get audit logs → 403 Forbidden
+GET {{baseUrl}}/audit-logs
+Authorization: Bearer {{teamManagerToken}}
+
+
+### TM 3 — Get own profile → 200 + assignedTeams should be NON-EMPTY
+# The seed script assigned this user to "Platform Engineering" team
+# If assignedTeams is empty, the seed script's TeamAssignment didn't run
+GET {{baseUrl}}/auth/profile
+Authorization: Bearer {{teamManagerToken}}
+
+
+# ═══════════════════════════════════════════════════════════════
+# SECTION 6: VIEWER — read-only, most things forbidden
+# ═══════════════════════════════════════════════════════════════
+
+### VIEWER 1 — List users → 403 Forbidden
+GET {{baseUrl}}/users
+Authorization: Bearer {{viewerToken}}
+
+
+### VIEWER 2 — Get audit logs → 403 Forbidden
+GET {{baseUrl}}/audit-logs
+Authorization: Bearer {{viewerToken}}
+
+
+### VIEWER 3 — Get own profile → 200 + assignedTeams should be EMPTY []
+GET {{baseUrl}}/auth/profile
+Authorization: Bearer {{viewerToken}}
+
+
+# ═══════════════════════════════════════════════════════════════
+# SECTION 7: MUTATIONS — generate audit log entries
+# Run these, then check SECTION 8 to verify audit capture
+# ═══════════════════════════════════════════════════════════════
+
+### MUT 1 — Register a new user (POST → should create a CREATE audit entry)
+POST {{baseUrl}}/auth/register
+Content-Type: {{contentType}}
+
+{
+  "email": "phase2.verify@example.com",
+  "password": "Phase2Test123!",
+  "firstName": "Phase2",
+  "lastName": "Verify"
+}
+
+
+### MUT 2 — Change a user's role (PATCH → should create an UPDATE audit entry)
+# Uses @targetUserId from top of file — paste a real user UUID
+PATCH {{baseUrl}}/users/{{targetUserId}}/role
+Content-Type: {{contentType}}
+Authorization: Bearer {{adminToken}}
+
+{
+  "role": "HR_MANAGER"
+}
+
+
+### MUT 3 — Change same user back to VIEWER (second UPDATE entry)
+PATCH {{baseUrl}}/users/{{targetUserId}}/role
+Content-Type: {{contentType}}
+Authorization: Bearer {{adminToken}}
+
+{
+  "role": "VIEWER"
+}
+
+
+# ═══════════════════════════════════════════════════════════════
+# SECTION 8: AUDIT VERIFICATION — check mutations were logged
+# Run these AFTER Section 7
+# ═══════════════════════════════════════════════════════════════
+
+### AUDIT 1 — All audit logs — should include entries from Section 7
+# Look for: CREATE (MUT 1), UPDATE (MUT 2), UPDATE (MUT 3)
+# Each entry should have: userId, action, entityType, entityId, metadata, user (joined)
+GET {{baseUrl}}/audit-logs
+Authorization: Bearer {{adminToken}}
+
+
+### AUDIT 2 — Filter by UPDATE action — should show the role changes from MUT 2 + MUT 3
+GET {{baseUrl}}/audit-logs?action=UPDATE
+Authorization: Bearer {{adminToken}}
+
+
+### AUDIT 3 — Filter by USER entity type — shows all user-related mutations
+GET {{baseUrl}}/audit-logs?entityType=USER
+Authorization: Bearer {{adminToken}}

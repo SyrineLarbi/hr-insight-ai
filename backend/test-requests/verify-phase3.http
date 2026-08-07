@@ -1,0 +1,352 @@
+# HR Insight AI — Phase 3 Final Verification: CRUD + RBAC Scoping
+# Requires: REST Client VS Code extension
+# Backend runs on port 3010 (npm run start:dev)
+#
+# HOW TO USE:
+# 1. Run SECTION 1 login tests → paste all 4 tokens at top (no quotes)
+# 2. Run SECTION 2 to get team UUIDs → paste into @assignedTeamId and @otherTeamId
+# 3. Run all remaining tests top to bottom
+# 4. Check each result matches the expected comment
+
+@baseUrl = http://localhost:3010
+@contentType = application/json
+
+# ─────────────────────────────────────────────────────────────
+# STEP 1: Paste tokens after running logins (no quotes)
+# ─────────────────────────────────────────────────────────────
+@adminToken       = PASTE_ADMIN_TOKEN_HERE
+@hrManagerToken   = PASTE_HR_MANAGER_TOKEN_HERE
+@teamManagerToken = PASTE_TEAM_MANAGER_TOKEN_HERE
+@viewerToken      = PASTE_VIEWER_TOKEN_HERE
+
+# Paste team UUIDs (from SECTION 2 below)
+@assignedTeamId = PASTE_TM_ASSIGNED_TEAM_UUID
+@otherTeamId    = PASTE_DIFFERENT_TEAM_UUID
+
+# Paste employee UUID (from SECTION 4 below)
+@employeeId = PASTE_EMPLOYEE_UUID_HERE
+
+# Will be filled after creating a team in SECTION 7
+@newTeamId = PASTE_NEWLY_CREATED_TEAM_UUID
+@newEmployeeId = PASTE_NEWLY_CREATED_EMPLOYEE_UUID
+
+
+# ═══════════════════════════════════════════════════════════════
+# SECTION 1: LOGIN ALL 4 ROLES
+# ═══════════════════════════════════════════════════════════════
+
+### LOGIN 1 — ADMIN
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "admin@hrinsight.com",
+  "password": "Password123!"
+}
+
+
+### LOGIN 2 — HR_MANAGER
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "hr.manager@hrinsight.com",
+  "password": "Password123!"
+}
+
+
+### LOGIN 3 — TEAM_MANAGER
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "team.manager@hrinsight.com",
+  "password": "Password123!"
+}
+
+
+### LOGIN 4 — VIEWER
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "viewer@hrinsight.com",
+  "password": "Password123!"
+}
+
+
+# ═══════════════════════════════════════════════════════════════
+# SECTION 2: TEAMS — RBAC SCOPING
+# ═══════════════════════════════════════════════════════════════
+
+### TEAMS 1 — ADMIN sees ALL teams
+# Copy one teamId → @assignedTeamId, a different one → @otherTeamId
+GET {{baseUrl}}/teams
+Authorization: Bearer {{adminToken}}
+
+
+### TEAMS 2 — TEAM_MANAGER sees ONLY assigned teams (should be 1: Platform Engineering)
+GET {{baseUrl}}/teams
+Authorization: Bearer {{teamManagerToken}}
+
+
+### TEAMS 3 — VIEWER sees all teams (read-only)
+GET {{baseUrl}}/teams
+Authorization: Bearer {{viewerToken}}
+
+
+### TEAMS 4 — TEAM_MANAGER: get assigned team → 200
+GET {{baseUrl}}/teams/{{assignedTeamId}}
+Authorization: Bearer {{teamManagerToken}}
+
+
+### TEAMS 5 — TEAM_MANAGER: get unassigned team → 403 Forbidden
+GET {{baseUrl}}/teams/{{otherTeamId}}
+Authorization: Bearer {{teamManagerToken}}
+
+
+### TEAMS 6 — VIEWER: create team → 403 Forbidden
+POST {{baseUrl}}/teams
+Content-Type: {{contentType}}
+Authorization: Bearer {{viewerToken}}
+
+{
+  "name": "Viewer Team",
+  "department": "None"
+}
+
+
+# ═══════════════════════════════════════════════════════════════
+# SECTION 3: EMPLOYEES — RBAC SCOPING
+# ═══════════════════════════════════════════════════════════════
+
+### EMP 1 — ADMIN: all employees (should be ~60)
+# Copy one employee id → @employeeId
+GET {{baseUrl}}/employees
+Authorization: Bearer {{adminToken}}
+
+
+### EMP 2 — ADMIN: filter by team
+GET {{baseUrl}}/employees?teamId={{assignedTeamId}}
+Authorization: Bearer {{adminToken}}
+
+
+### EMP 3 — TEAM_MANAGER: only sees employees in assigned team
+GET {{baseUrl}}/employees
+Authorization: Bearer {{teamManagerToken}}
+
+
+### EMP 4 — TEAM_MANAGER: create employee in THEIR team → 201
+POST {{baseUrl}}/employees
+Content-Type: {{contentType}}
+Authorization: Bearer {{teamManagerToken}}
+
+{
+  "teamId": "{{assignedTeamId}}",
+  "name": "TM Test Employee",
+  "salary": 70000,
+  "tenureMonths": 12,
+  "engagementScore": 4.0,
+  "performanceScore": 3.5,
+  "absenteeismDays": 3,
+  "overtimeHours": 5,
+  "lastPromotionMonths": 6,
+  "trainingHours": 30
+}
+
+
+### EMP 5 — TEAM_MANAGER: create employee in OTHER team → 403 Forbidden
+POST {{baseUrl}}/employees
+Content-Type: {{contentType}}
+Authorization: Bearer {{teamManagerToken}}
+
+{
+  "teamId": "{{otherTeamId}}",
+  "name": "Unauthorized Employee",
+  "salary": 50000,
+  "tenureMonths": 6,
+  "engagementScore": 3,
+  "performanceScore": 3,
+  "absenteeismDays": 0,
+  "overtimeHours": 0,
+  "lastPromotionMonths": 6,
+  "trainingHours": 10
+}
+
+
+### EMP 6 — TEAM_MANAGER: delete employee → 403 Forbidden (not allowed)
+DELETE {{baseUrl}}/employees/{{employeeId}}
+Authorization: Bearer {{teamManagerToken}}
+
+
+### EMP 7 — VIEWER: create employee → 403 Forbidden
+POST {{baseUrl}}/employees
+Content-Type: {{contentType}}
+Authorization: Bearer {{viewerToken}}
+
+{
+  "teamId": "{{assignedTeamId}}",
+  "name": "Viewer Employee",
+  "salary": 50000,
+  "tenureMonths": 6,
+  "engagementScore": 3,
+  "performanceScore": 3,
+  "absenteeismDays": 0,
+  "overtimeHours": 0,
+  "lastPromotionMonths": 6,
+  "trainingHours": 10
+}
+
+
+### EMP 8 — VIEWER: update employee → 403 Forbidden
+PATCH {{baseUrl}}/employees/{{employeeId}}
+Content-Type: {{contentType}}
+Authorization: Bearer {{viewerToken}}
+
+{
+  "salary": 999999
+}
+
+
+### EMP 9 — Validation: bad scores → 400
+POST {{baseUrl}}/employees
+Content-Type: {{contentType}}
+Authorization: Bearer {{adminToken}}
+
+{
+  "teamId": "{{assignedTeamId}}",
+  "name": "Bad Data",
+  "salary": -100,
+  "tenureMonths": 12,
+  "engagementScore": 6,
+  "performanceScore": 0,
+  "absenteeismDays": -1,
+  "overtimeHours": 0,
+  "lastPromotionMonths": 12,
+  "trainingHours": 10
+}
+
+
+# ═══════════════════════════════════════════════════════════════
+# SECTION 4: ANALYTICS — RBAC + CORRECTNESS
+# ═══════════════════════════════════════════════════════════════
+
+### ANALYTICS 1 — ADMIN: team analytics → 200 with full response
+# Check: distributions.engagement.low + medium + high === employeeCount
+# Check: all riskIndicators are 0–100
+# Check: averages.engagementScore is 1–5
+GET {{baseUrl}}/analytics/team/{{assignedTeamId}}
+Authorization: Bearer {{adminToken}}
+
+
+### ANALYTICS 2 — TEAM_MANAGER: their assigned team → 200
+GET {{baseUrl}}/analytics/team/{{assignedTeamId}}
+Authorization: Bearer {{teamManagerToken}}
+
+
+### ANALYTICS 3 — TEAM_MANAGER: unassigned team → 403 Forbidden
+GET {{baseUrl}}/analytics/team/{{otherTeamId}}
+Authorization: Bearer {{teamManagerToken}}
+
+
+### ANALYTICS 4 — Non-existent team → 404
+GET {{baseUrl}}/analytics/team/00000000-0000-0000-0000-000000000000
+Authorization: Bearer {{adminToken}}
+
+
+### ANALYTICS 5 — VIEWER: can read analytics → 200
+GET {{baseUrl}}/analytics/team/{{assignedTeamId}}
+Authorization: Bearer {{viewerToken}}
+
+
+### ANALYTICS 6 — Compare two teams (ADMIN)
+GET {{baseUrl}}/analytics/team/{{otherTeamId}}
+Authorization: Bearer {{adminToken}}
+
+
+# ═══════════════════════════════════════════════════════════════
+# SECTION 5: PHASE 2 STILL WORKS (regression check)
+# ═══════════════════════════════════════════════════════════════
+
+### REGRESSION 1 — Profile still works
+GET {{baseUrl}}/auth/profile
+Authorization: Bearer {{adminToken}}
+
+
+### REGRESSION 2 — Register still public (no token needed)
+POST {{baseUrl}}/auth/register
+Content-Type: {{contentType}}
+
+{
+  "email": "phase3.verify@example.com",
+  "password": "Phase3Test123!",
+  "firstName": "Phase3",
+  "lastName": "Verify"
+}
+
+
+### REGRESSION 3 — Users endpoint still ADMIN-only
+GET {{baseUrl}}/users
+Authorization: Bearer {{hrManagerToken}}
+
+
+# ═══════════════════════════════════════════════════════════════
+# SECTION 6: AUDIT TRAIL — Phase 3 mutations captured
+# ═══════════════════════════════════════════════════════════════
+
+### AUDIT 1 — Create a team (to generate audit entry)
+POST {{baseUrl}}/teams
+Content-Type: {{contentType}}
+Authorization: Bearer {{adminToken}}
+
+{
+  "name": "Audit Test Team",
+  "department": "QA"
+}
+
+
+### AUDIT 2 — Create an employee (to generate audit entry)
+# Paste the new team id from AUDIT 1 → @newTeamId
+POST {{baseUrl}}/employees
+Content-Type: {{contentType}}
+Authorization: Bearer {{adminToken}}
+
+{
+  "teamId": "{{newTeamId}}",
+  "name": "Audit Test Employee",
+  "salary": 60000,
+  "tenureMonths": 6,
+  "engagementScore": 3,
+  "performanceScore": 3,
+  "absenteeismDays": 2,
+  "overtimeHours": 3,
+  "lastPromotionMonths": 6,
+  "trainingHours": 15
+}
+
+
+### AUDIT 3 — Update the employee (to generate audit entry)
+# Paste employee id from AUDIT 2 → @newEmployeeId
+PATCH {{baseUrl}}/employees/{{newEmployeeId}}
+Content-Type: {{contentType}}
+Authorization: Bearer {{adminToken}}
+
+{
+  "engagementScore": 4.5,
+  "salary": 65000
+}
+
+
+### AUDIT 4 — Check audit logs → should have CREATE/TEAM + CREATE/EMPLOYEE + UPDATE/EMPLOYEE
+GET {{baseUrl}}/audit-logs?page=1&limit=10
+Authorization: Bearer {{adminToken}}
+
+
+### AUDIT 5 — Filter audit logs by TEAM entity
+GET {{baseUrl}}/audit-logs?entityType=TEAM
+Authorization: Bearer {{adminToken}}
+
+
+### AUDIT 6 — Filter audit logs by EMPLOYEE entity
+GET {{baseUrl}}/audit-logs?entityType=EMPLOYEE
+Authorization: Bearer {{adminToken}}

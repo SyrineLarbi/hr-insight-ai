@@ -1,0 +1,99 @@
+# HR Insight AI — Analytics Endpoint
+# Requires: REST Client VS Code extension
+# Backend runs on port 3010 (npm run start:dev)
+#
+# SETUP:
+# 1. Get tokens from auth.http login tests
+# 2. Get team UUIDs from GET /teams (teams.http TEST 2)
+# 3. Paste below
+
+@baseUrl = http://localhost:3010
+
+# ⚠️  NO quotes — raw token strings only
+@adminToken       = PASTE_ADMIN_TOKEN_HERE
+@hrManagerToken   = PASTE_HR_MANAGER_TOKEN_HERE
+@teamManagerToken = PASTE_TEAM_MANAGER_TOKEN_HERE
+@viewerToken      = PASTE_VIEWER_TOKEN_HERE
+
+# Paste team UUIDs from GET /teams
+@assignedTeamId = PASTE_ASSIGNED_TEAM_UUID
+@otherTeamId    = PASTE_OTHER_TEAM_UUID
+
+
+# ═══════════════════════════════════════════════════════════════
+# SECTION 1: ACCESS CONTROL
+# ═══════════════════════════════════════════════════════════════
+
+### ❌ TEST 1 — No token → 401 Unauthorized
+GET {{baseUrl}}/analytics/team/{{assignedTeamId}}
+
+
+### ❌ TEST 2 — Invalid UUID in path → 400 Bad Request (ParseUUIDPipe)
+GET {{baseUrl}}/analytics/team/not-a-uuid
+Authorization: Bearer {{adminToken}}
+
+
+### ❌ TEST 3 — Valid UUID but team doesn't exist → 404 Not Found
+GET {{baseUrl}}/analytics/team/00000000-0000-0000-0000-000000000000
+Authorization: Bearer {{adminToken}}
+
+
+### ❌ TEST 4 — TEAM_MANAGER: team they're NOT assigned to → 403 Forbidden
+GET {{baseUrl}}/analytics/team/{{otherTeamId}}
+Authorization: Bearer {{teamManagerToken}}
+
+
+# ═══════════════════════════════════════════════════════════════
+# SECTION 2: ANALYTICS DATA — verify structure and values
+# ═══════════════════════════════════════════════════════════════
+
+### ✅ TEST 5 — ADMIN: full analytics for a team
+# Verify: teamId, teamName, department, employeeCount all present
+# Verify: averages has 8 numeric fields
+# Verify: distributions.engagement.low + medium + high === employeeCount
+# Verify: all riskIndicators are 0-100 (percentages)
+GET {{baseUrl}}/analytics/team/{{assignedTeamId}}
+Authorization: Bearer {{adminToken}}
+
+
+### ✅ TEST 6 — HR_MANAGER: same result as ADMIN (no scoping)
+GET {{baseUrl}}/analytics/team/{{assignedTeamId}}
+Authorization: Bearer {{hrManagerToken}}
+
+
+### ✅ TEST 7 — TEAM_MANAGER: their own assigned team → 200
+GET {{baseUrl}}/analytics/team/{{assignedTeamId}}
+Authorization: Bearer {{teamManagerToken}}
+
+
+### ✅ TEST 8 — VIEWER: analytics visible (read-only access)
+GET {{baseUrl}}/analytics/team/{{assignedTeamId}}
+Authorization: Bearer {{viewerToken}}
+
+
+### ✅ TEST 9 — Different team: compare analytics between 2 teams
+GET {{baseUrl}}/analytics/team/{{otherTeamId}}
+Authorization: Bearer {{adminToken}}
+
+
+# ═══════════════════════════════════════════════════════════════
+# SECTION 3: MANUAL VERIFICATION CHECKLIST
+# After running TEST 5, check the response manually:
+#
+# averages:
+#   [ ] salary is a positive number
+#   [ ] tenureMonths is between 0 and 120
+#   [ ] engagementScore is between 1 and 5
+#   [ ] performanceScore is between 1 and 5
+#
+# distributions:
+#   [ ] engagement.low + engagement.medium + engagement.high === employeeCount
+#   [ ] performance.low + performance.medium + performance.high === employeeCount
+#
+# riskIndicators:
+#   [ ] pctHighOvertime is between 0 and 100
+#   [ ] pctLowEngagement is between 0 and 100
+#   [ ] pctLowPerformance is between 0 and 100
+#   [ ] pctLongWithoutPromotion is between 0 and 100
+#   [ ] pctHighAbsenteeism is between 0 and 100
+# ═══════════════════════════════════════════════════════════════

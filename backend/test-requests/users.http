@@ -1,0 +1,114 @@
+# HR Insight AI — Users Endpoints (ADMIN only)
+# Requires: REST Client VS Code extension
+# Backend runs on port 3010 (npm run start:dev)
+#
+# Workflow:
+# 1. Open auth.http → Send TEST 4 (admin login) → copy access_token
+# 2. Paste it into @adminToken below (no quotes)
+# 3. Send TEST 2 (viewer login) → copy that token into @viewerToken
+
+@baseUrl = http://localhost:3010
+@contentType = application/json
+
+# ─────────────────────────────────────────────
+# ⚠️  NO quotes — paste raw token strings only
+# ─────────────────────────────────────────────
+@adminToken = PASTE_YOUR_ACCESS_TOKEN_HERE
+@viewerToken = PASTE_YOUR_ACCESS_TOKEN_HERE
+
+# ─────────────────────────────────────────────
+# Paste a user UUID here after running TEST 3
+# ─────────────────────────────────────────────
+@userId = 4c8fb09f-1215-4cd0-ab3d-aca8c9492b4b
+
+# ─────────────────────────────────────────────
+# Paste a team UUID here (from GET /teams or DB)
+# ─────────────────────────────────────────────
+@teamId = d42dfa72-44e1-4113-82b6-c7160411175a
+
+
+### ❌ TEST 1 — List users WITHOUT token (should return 401 Unauthorized)
+GET {{baseUrl}}/users
+
+
+### ✅ TEST 2 — Login as VIEWER to get a viewer token
+# Copy access_token → paste into @viewerToken above
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "viewer@hrinsight.com",
+  "password": "Password123!"
+}
+
+
+### ❌ TEST 3 — List users with VIEWER token (should return 403 Forbidden)
+GET {{baseUrl}}/users
+Authorization: Bearer {{viewerToken}}
+
+
+### ✅ TEST 4 — List ALL users with ADMIN token (should return 200 + array)
+# Copy one of the user IDs → paste into @userId above
+GET {{baseUrl}}/users
+Authorization: Bearer {{adminToken}}
+
+
+### ✅ TEST 5 — Get ONE user by ID (ADMIN)
+GET {{baseUrl}}/users/{{userId}}
+Authorization: Bearer {{adminToken}}
+
+
+### ✅ TEST 6 — Change a user's role to HR_MANAGER (ADMIN)
+# Replace @userId with the viewer user's UUID
+PATCH {{baseUrl}}/users/{{userId}}/role
+Content-Type: {{contentType}}
+Authorization: Bearer {{adminToken}}
+
+{
+  "role": "HR_MANAGER"
+}
+
+
+### ✅ TEST 7 — Assign teams to a user (ADMIN) (should return 201)
+# Uses the viewer user and Platform Engineering team
+POST {{baseUrl}}/users/{{userId}}/assign-teams
+Content-Type: {{contentType}}
+Authorization: Bearer {{adminToken}}
+
+{
+  "teamIds": ["{{teamId}}"]
+}
+
+
+### ✅ TEST 8 — Assign EMPTY teams array (removes all assignments, should return 201)
+POST {{baseUrl}}/users/{{userId}}/assign-teams
+Content-Type: {{contentType}}
+Authorization: Bearer {{adminToken}}
+
+{
+  "teamIds": []
+}
+
+
+### ❌ TEST 9 — Assign non-existent team UUID (should return 404)
+POST {{baseUrl}}/users/{{userId}}/assign-teams
+Content-Type: {{contentType}}
+Authorization: Bearer {{adminToken}}
+
+{
+  "teamIds": ["00000000-0000-0000-0000-000000000000"]
+}
+
+
+### ✅ TEST 10 — Verify global JWT guard: profile still works (no manual @UseGuards)
+# This confirms the global guard protects routes automatically
+GET {{baseUrl}}/auth/profile
+Authorization: Bearer {{adminToken}}
+
+
+### ❌ TEST 11 — HR_MANAGER token on /users (should return 403 — ADMIN only)
+# First login as hr.manager to get a token, paste below
+# @hrToken = PASTE_HR_MANAGER_TOKEN_HERE
+# GET {{baseUrl}}/users
+# Authorization: Bearer {{hrToken}}
+# (uncomment the 3 lines above once you have an HR_MANAGER token)

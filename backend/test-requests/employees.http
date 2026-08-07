@@ -1,0 +1,234 @@
+# HR Insight AI — Employees Endpoints
+# Requires: REST Client VS Code extension
+# Backend runs on port 3010 (npm run start:dev)
+#
+# SETUP:
+# 1. Open auth.http → run LOGIN tests → paste tokens below
+# 2. Run GET /teams to get a valid teamId
+# 3. Paste team UUIDs and employee UUIDs as you get them
+
+@baseUrl = http://localhost:3010
+@contentType = application/json
+
+# ⚠️  NO quotes — raw token strings only
+@adminToken       = PASTE_ADMIN_TOKEN_HERE
+@hrManagerToken   = PASTE_HR_MANAGER_TOKEN_HERE
+@teamManagerToken = PASTE_TEAM_MANAGER_TOKEN_HERE
+@viewerToken      = PASTE_VIEWER_TOKEN_HERE
+
+# Paste team UUIDs from GET /teams
+@assignedTeamId   = PASTE_TEAM_MANAGERS_ASSIGNED_TEAM_UUID
+@otherTeamId      = PASTE_A_DIFFERENT_TEAM_UUID
+
+# Paste an employee UUID from GET /employees
+@employeeId = PASTE_EMPLOYEE_UUID_HERE
+
+
+# ═══════════════════════════════════════════════════════════════
+# SECTION 1: LIST EMPLOYEES — RBAC scoping test
+# ═══════════════════════════════════════════════════════════════
+
+### ❌ TEST 1 — No token → 401
+GET {{baseUrl}}/employees
+
+
+### ✅ TEST 2 — ADMIN: all 60 employees with team info
+# Copy any employee id → @employeeId
+GET {{baseUrl}}/employees
+Authorization: Bearer {{adminToken}}
+
+
+### ✅ TEST 3 — ADMIN: filter by team
+GET {{baseUrl}}/employees?teamId={{assignedTeamId}}
+Authorization: Bearer {{adminToken}}
+
+
+### ✅ TEST 4 — TEAM_MANAGER: only sees employees in assigned team
+# If this returns employees from other teams, RBAC scoping is broken
+GET {{baseUrl}}/employees
+Authorization: Bearer {{teamManagerToken}}
+
+
+### ✅ TEST 5 — VIEWER: all employees (read-only)
+GET {{baseUrl}}/employees
+Authorization: Bearer {{viewerToken}}
+
+
+# ═══════════════════════════════════════════════════════════════
+# SECTION 2: GET ONE EMPLOYEE
+# ═══════════════════════════════════════════════════════════════
+
+### ✅ TEST 6 — ADMIN: get employee by ID (includes riskSnapshots)
+GET {{baseUrl}}/employees/{{employeeId}}
+Authorization: Bearer {{adminToken}}
+
+
+### ✅ TEST 7 — TEAM_MANAGER: get employee in their team → 200
+GET {{baseUrl}}/employees/{{employeeId}}
+Authorization: Bearer {{teamManagerToken}}
+
+
+# ═══════════════════════════════════════════════════════════════
+# SECTION 3: CREATE EMPLOYEE
+# ═══════════════════════════════════════════════════════════════
+
+### ✅ TEST 8 — ADMIN: create employee in any team → 201
+POST {{baseUrl}}/employees
+Content-Type: {{contentType}}
+Authorization: Bearer {{adminToken}}
+
+{
+  "teamId": "{{assignedTeamId}}",
+  "name": "New Employee Admin",
+  "salary": 75000,
+  "tenureMonths": 18,
+  "engagementScore": 4.2,
+  "performanceScore": 3.8,
+  "absenteeismDays": 2,
+  "overtimeHours": 5,
+  "lastPromotionMonths": 12,
+  "trainingHours": 40
+}
+
+
+### ✅ TEST 9 — TEAM_MANAGER: create employee in their own team → 201
+POST {{baseUrl}}/employees
+Content-Type: {{contentType}}
+Authorization: Bearer {{teamManagerToken}}
+
+{
+  "teamId": "{{assignedTeamId}}",
+  "name": "TM Created Employee",
+  "salary": 65000,
+  "tenureMonths": 6,
+  "engagementScore": 3.5,
+  "performanceScore": 3.5,
+  "absenteeismDays": 1,
+  "overtimeHours": 2,
+  "lastPromotionMonths": 6,
+  "trainingHours": 20
+}
+
+
+### ❌ TEST 10 — TEAM_MANAGER: create employee in another team → 403 Forbidden
+POST {{baseUrl}}/employees
+Content-Type: {{contentType}}
+Authorization: Bearer {{teamManagerToken}}
+
+{
+  "teamId": "{{otherTeamId}}",
+  "name": "Unauthorized Employee",
+  "salary": 50000,
+  "tenureMonths": 12,
+  "engagementScore": 3,
+  "performanceScore": 3,
+  "absenteeismDays": 0,
+  "overtimeHours": 0,
+  "lastPromotionMonths": 12,
+  "trainingHours": 10
+}
+
+
+### ❌ TEST 11 — VIEWER: create employee → 403 Forbidden
+POST {{baseUrl}}/employees
+Content-Type: {{contentType}}
+Authorization: Bearer {{viewerToken}}
+
+{
+  "teamId": "{{assignedTeamId}}",
+  "name": "Viewer Attempt",
+  "salary": 50000,
+  "tenureMonths": 12,
+  "engagementScore": 3,
+  "performanceScore": 3,
+  "absenteeismDays": 0,
+  "overtimeHours": 0,
+  "lastPromotionMonths": 12,
+  "trainingHours": 10
+}
+
+
+### ❌ TEST 12 — Validation: engagementScore out of range → 400 Bad Request
+POST {{baseUrl}}/employees
+Content-Type: {{contentType}}
+Authorization: Bearer {{adminToken}}
+
+{
+  "teamId": "{{assignedTeamId}}",
+  "name": "Invalid Employee",
+  "salary": 50000,
+  "tenureMonths": 12,
+  "engagementScore": 6,
+  "performanceScore": 0,
+  "absenteeismDays": -1,
+  "overtimeHours": 0,
+  "lastPromotionMonths": 12,
+  "trainingHours": 10
+}
+
+
+### ❌ TEST 13 — Validation: missing required fields → 400 Bad Request
+POST {{baseUrl}}/employees
+Content-Type: {{contentType}}
+Authorization: Bearer {{adminToken}}
+
+{
+  "name": "Missing Fields Employee"
+}
+
+
+# ═══════════════════════════════════════════════════════════════
+# SECTION 4: UPDATE EMPLOYEE
+# ═══════════════════════════════════════════════════════════════
+
+### ✅ TEST 14 — ADMIN: update engagement and performance scores
+PATCH {{baseUrl}}/employees/{{employeeId}}
+Content-Type: {{contentType}}
+Authorization: Bearer {{adminToken}}
+
+{
+  "engagementScore": 4.5,
+  "performanceScore": 4.0,
+  "trainingHours": 60
+}
+
+
+### ✅ TEST 15 — HR_MANAGER: update salary
+PATCH {{baseUrl}}/employees/{{employeeId}}
+Content-Type: {{contentType}}
+Authorization: Bearer {{hrManagerToken}}
+
+{
+  "salary": 82000
+}
+
+
+### ❌ TEST 16 — VIEWER: update employee → 403 Forbidden
+PATCH {{baseUrl}}/employees/{{employeeId}}
+Content-Type: {{contentType}}
+Authorization: Bearer {{viewerToken}}
+
+{
+  "salary": 999999
+}
+
+
+# ═══════════════════════════════════════════════════════════════
+# SECTION 5: DELETE EMPLOYEE
+# ═══════════════════════════════════════════════════════════════
+
+### ❌ TEST 17 — TEAM_MANAGER: delete employee → 403 Forbidden
+DELETE {{baseUrl}}/employees/{{employeeId}}
+Authorization: Bearer {{teamManagerToken}}
+
+
+### ❌ TEST 18 — VIEWER: delete employee → 403 Forbidden
+DELETE {{baseUrl}}/employees/{{employeeId}}
+Authorization: Bearer {{viewerToken}}
+
+
+### ✅ TEST 19 — HR_MANAGER: delete employee → 200 + success message
+# Use an employee you created in TEST 8 or TEST 9 — not a seeded one
+# DELETE {{baseUrl}}/employees/NEWLY-CREATED-EMPLOYEE-UUID
+# Authorization: Bearer {{hrManagerToken}}
+# (Uncomment 2 lines above when ready)
