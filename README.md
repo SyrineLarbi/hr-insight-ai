@@ -37,7 +37,7 @@ Three things make workforce attrition expensive and hard to manage:
 
 Pick a team and a date range. A WebSocket streams progress through six stages while the backend fetches employees, calls the ML service, and drafts the narrative. The finished report carries a risk score, an executive summary, a ranked action plan with cost and timeline per item, and an interactive ROI model.
 
-![Report detail](docs/screenshots/09-report-detail.png)
+![Report detail](screenshots/09-report-detail.png)
 
 ### Simulation — "what would actually move the number?"
 
@@ -45,13 +45,13 @@ The lever that makes the model useful rather than just interesting. Adjust engag
 
 Below: raising engagement by 1 point and cutting 6 hours of weekly overtime drops team risk **41% → 14%**, moving 7 people out of the HIGH-risk bucket.
 
-![Simulation](docs/screenshots/04-simulation.png)
+![Simulation](screenshots/04-simulation.png)
 
 ### Dashboard — where risk is concentrated
 
 Per-team analytics plus a heatmap normalised across every team the signed-in user can see, so the worst cell is always the one to act on. Colour is relative to peers, not to an arbitrary fixed threshold.
 
-![Dashboard](docs/screenshots/02-dashboard.png)
+![Dashboard](screenshots/02-dashboard.png)
 
 <details>
 <summary><b>More screens</b> — employees, teams, user management, audit log, API docs, mobile</summary>
@@ -60,35 +60,35 @@ Per-team analytics plus a heatmap normalised across every team the signed-in use
 
 **Employees** — cross-team list, searchable and sortable, colour-coded on engagement and performance.
 
-![Employees](docs/screenshots/05-employees.png)
+![Employees](screenshots/05-employees.png)
 
 **User management** (Admin only) — assign roles and scope Team Managers to specific teams. A manager with no assignments sees no data.
 
-![User management](docs/screenshots/07-users.png)
+![User management](screenshots/07-users.png)
 
 **Audit log** — every mutating action recorded with actor, entity, and IP. Filterable by action and entity type.
 
-![Audit logs](docs/screenshots/10-audit-logs.png)
+![Audit logs](screenshots/10-audit-logs.png)
 
 **Reports list** — history per team with risk tags, scoped to what your role may see.
 
-![Reports](docs/screenshots/08-reports.png)
+![Reports](screenshots/08-reports.png)
 
 **Teams**
 
-![Teams](docs/screenshots/06-teams.png)
+![Teams](screenshots/06-teams.png)
 
 **Interactive API docs** — generated from the code at `/api/docs`.
 
-![API docs](docs/screenshots/12-api-docs.png)
+![API docs](screenshots/12-api-docs.png)
 
 **Mobile** — the layout collapses rather than scrolling sideways.
 
-<img src="docs/screenshots/11-mobile-dashboard.png" width="320" alt="Mobile dashboard">
+<img src="screenshots/11-mobile-dashboard.png" width="320" alt="Mobile dashboard">
 
 **Login**
 
-![Login](docs/screenshots/01-login.png)
+![Login](screenshots/01-login.png)
 
 </details>
 
