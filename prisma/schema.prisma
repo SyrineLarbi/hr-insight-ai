@@ -1,0 +1,217 @@
+// Prisma Schema for HR Insight AI
+// This file defines the database structure. Prisma uses it to:
+// 1. Generate SQL migrations (CREATE TABLE, ALTER TABLE)
+// 2. Generate a TypeScript client (prisma.user.findMany(), etc.)
+// 3. Provide auto-completion in your IDE
+
+generator client {
+  provider = "prisma-client-js"
+  // This tells Prisma to generate a JavaScript/TypeScript client
+  // that we import as: import { PrismaClient } from '@prisma/client'
+}
+
+datasource db {
+  provider = "postgresql"
+  // In Prisma v7, the database URL is configured in prisma.config.ts
+  // (which reads DATABASE_URL from .env automatically via dotenv)
+}
+
+// ============================================================
+// ENUMS — Predefined sets of allowed values
+// ============================================================
+
+// User roles for RBAC (Role-Based Access Control)
+// Each role has different permissions throughout the app
+enum Role {
+  ADMIN        // Full access: manage users, all teams, system settings
+  HR_MANAGER   // All teams, generate reports, export PDFs, view audit logs
+  TEAM_MANAGER // Only assigned teams (via team_assignments), generate for own teams
+  VIEWER       // Read-only: view shared reports, no generation/export
+}
+
+// Report generation status — tracks the pipeline state
+enum ReportStatus {
+  GENERATING // Pipeline is running (ML prediction, LLM summary, etc.)
+  COMPLETED  // Successfully generated
+  FAILED     // Something went wrong (API error, timeout, etc.)
+}
+
+// Risk level — categorized from the raw 0-1 score
+enum RiskLevel {
+  LOW    // 0.0 - 0.3: Employee is likely stable
+  MEDIUM // 0.3 - 0.6: Some warning signs, worth monitoring
+  HIGH   // 0.6 - 1.0: Significant flight risk, needs intervention
+}
+
+// Audit log action types — what happened
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  GENERATE_REPORT
+  EXPORT_PDF
+  LOGIN
+}
+
+// ============================================================
+// MODELS (Tables)
+// ============================================================
+
+// ---------- Users ----------
+// Anyone who logs into the platform: admins, HR managers, team managers, viewers
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  role         Role     @default(VIEWER)
+  firstName    String   @map("first_name")
+  lastName     String   @map("last_name")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // Relations — a user can:
+  reports         Report[]         // Generate many reports
+  auditLogs       AuditLog[]       // Have many audit log entries
+  teamAssignments TeamAssignment[] // Be assigned to many teams (for TEAM_MANAGER role)
+
+  @@map("users") // Table name in PostgreSQL will be "users" (lowercase)
+}
+
+// ---------- Teams ----------
+// Departments/teams that employees belong to (e.g., "Engineering", "Marketing")
+model Team {
+  id         String   @id @default(uuid())
+  name       String
+  department String
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  employees       Employee[]       // A team has many employees
+  reports         Report[]         // A team can have many generated reports
+  teamAssignments TeamAssignment[] // Many managers can be assigned to this team
+
+  @@map("teams")
+}
+
+// ---------- Employees ----------
+// The people whose turnover risk we're predicting
+// These are the core data points the ML model uses
+model Employee {
+  id                  String   @id @default(uuid())
+  teamId              String   @map("team_id")
+  name                String
+  salary              Float    // Annual salary in dollars
+  tenureMonths        Int      @map("tenure_months")        // How long they've been at the company
+  engagementScore     Float    @map("engagement_score")     // 1-5 scale (from surveys)
+  performanceScore    Float    @map("performance_score")    // 1-5 scale (from reviews)
+  absenteeismDays     Int      @map("absenteeism_days")     // Days absent in last 12 months
+  overtimeHours       Float    @map("overtime_hours")       // Weekly overtime hours
+  lastPromotionMonths Int      @map("last_promotion_months") // Months since last promotion
+  trainingHours       Float    @map("training_hours")       // Training hours completed
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  team          Team           @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  riskSnapshots RiskSnapshot[] // Historical risk scores over time
+
+  @@map("employees")
+}
+
+// ---------- Reports ----------
+// Generated insight reports — the main output of the platform
+// Each report is tied to a team and a date range
+model Report {
+  id             String       @id @default(uuid())
+  teamId         String       @map("team_id")
+  generatedBy    String       @map("generated_by") // User who triggered the report
+  dateRangeStart DateTime     @map("date_range_start")
+  dateRangeEnd   DateTime     @map("date_range_end")
+  riskScore      Float?       @map("risk_score")    // Overall team risk (0-1), null while GENERATING
+  modelVersion   String?      @map("model_version") // e.g., "v1.0" — tracks which ML model was used
+  summaryText    String?      @map("summary_text")  // LLM-generated executive summary (markdown)
+  status         ReportStatus @default(GENERATING)
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  // Relations
+  team        Team         @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  generatedByUser User     @relation(fields: [generatedBy], references: [id])
+  actionPlans ActionPlan[] // A report can have multiple action plan items
+
+  @@map("reports")
+}
+
+// ---------- Action Plans ----------
+// Structured action items generated by the LLM
+// Stored as JSON so we can have flexible structure
+model ActionPlan {
+  id           String   @id @default(uuid())
+  reportId     String   @map("report_id")
+  planJson     Json     @map("plan_json") // Structured action plan from LLM
+  projectedRoi Float?   @map("projected_roi") // Estimated ROI of implementing this plan
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  // Relations
+  report Report @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@map("action_plans")
+}
+
+// ---------- Audit Logs ----------
+// Every significant action in the system is logged here
+// This is a corporate compliance requirement — "who did what, when"
+model AuditLog {
+  id         String      @id @default(uuid())
+  userId     String      @map("user_id")
+  action     AuditAction
+  entityType String      @map("entity_type") // "TEAM", "EMPLOYEE", "REPORT", etc.
+  entityId   String?     @map("entity_id")   // ID of the affected entity
+  metadata   Json?       // Additional context: old/new values, request details
+  ipAddress  String?     @map("ip_address")
+  createdAt  DateTime    @default(now()) @map("created_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("audit_logs")
+}
+
+// ---------- Risk Snapshots ----------
+// Historical record of each employee's risk score over time
+// Created every time a report is generated for their team
+// This enables the "risk timeline" feature — see how risk evolves
+model RiskSnapshot {
+  id           String    @id @default(uuid())
+  employeeId   String    @map("employee_id")
+  riskScore    Float     @map("risk_score")    // 0-1 probability from ML model
+  riskLevel    RiskLevel @map("risk_level")    // LOW / MEDIUM / HIGH
+  modelVersion String    @map("model_version") // Which model version produced this score
+  snapshotDate DateTime  @default(now()) @map("snapshot_date")
+
+  // Relations
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@map("risk_snapshots")
+}
+
+// ---------- Team Assignments ----------
+// Maps which TEAM_MANAGER users can access which teams
+// This is the core of granular RBAC — without this, we'd need separate roles per team
+// A TEAM_MANAGER can be assigned to 1 or more teams
+// A team can have 1 or more assigned managers
+// This is a many-to-many join table
+model TeamAssignment {
+  id     String @id @default(uuid())
+  userId String @map("user_id")
+  teamId String @map("team_id")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  // Ensure a user can't be assigned to the same team twice
+  @@unique([userId, teamId])
+  @@map("team_assignments")
+}
